@@ -46,3 +46,28 @@ def summary(returns: pd.Series, benchmark: pd.Series,
         "alpha": alpha,
         "beta": beta,
     }
+
+
+def information_coefficient(signal: pd.DataFrame,
+                            forward_returns: pd.DataFrame) -> tuple[float, float]:
+    """Daily cross-sectional information coefficient and its t-stat.
+
+    For each day, the Pearson correlation between the signal and the next-day
+    return across the coin cross-section; returns (mean IC, t-stat of the daily
+    IC series). A large positive t-stat means the signal reliably ranks winners
+    vs losers out-of-time, independent of any P&L or cost assumptions.
+    """
+    ics = []
+    for t in signal.index:
+        a = signal.loc[t]
+        b = forward_returns.loc[t]
+        m = a.notna() & b.notna()
+        if m.sum() > 3:
+            ic = np.corrcoef(a[m], b[m])[0, 1]
+            if np.isfinite(ic):
+                ics.append(ic)
+    ics = pd.Series(ics)
+    if len(ics) < 2 or ics.std(ddof=1) == 0:
+        return (float(ics.mean()) if len(ics) else 0.0, 0.0)
+    t_stat = ics.mean() / ics.std(ddof=1) * np.sqrt(len(ics))
+    return float(ics.mean()), float(t_stat)

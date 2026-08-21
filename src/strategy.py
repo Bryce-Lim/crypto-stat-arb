@@ -63,19 +63,6 @@ def no_trade_band(weights: pd.DataFrame, band: float = 0.02) -> pd.DataFrame:
     return out
 
 
-def combine_inverse_vol(ret_a: pd.Series, ret_b: pd.Series,
-                        lookback: int = 30) -> pd.Series:
-    vol_a = ret_a.rolling(lookback).std()
-    vol_b = ret_b.rolling(lookback).std()
-    inv_a = 1.0 / vol_a.replace(0.0, np.nan)
-    inv_b = 1.0 / vol_b.replace(0.0, np.nan)
-    total = inv_a + inv_b
-    w_a = (inv_a / total).shift(1)   # lag weights: no lookahead
-    w_b = (inv_b / total).shift(1)
-    combined = w_a * ret_a + w_b * ret_b
-    return combined
-
-
 def vol_target(returns: pd.Series, target_annual: float = 0.15,
                lookback: int = 30, periods_per_year: int = 365,
                max_leverage: float = 3.0) -> pd.Series:
@@ -84,8 +71,8 @@ def vol_target(returns: pd.Series, target_annual: float = 0.15,
     Uses trailing realized vol lagged one day (no lookahead) as the scaler, so
     the reported return/drawdown numbers reflect a fixed risk budget rather than
     whatever raw leverage the gross-1 book happened to run. Leverage is capped to
-    avoid blow-ups when trailing vol is tiny. Volatility targeting is a linear
-    rescale, so it leaves the Sharpe ratio essentially unchanged.
+    avoid blow-ups when trailing vol is tiny. The scaler is time-varying, so it
+    re-weights days and modestly changes the Sharpe ratio (not a constant rescale).
     """
     realized = returns.rolling(lookback).std() * np.sqrt(periods_per_year)
     lev = (target_annual / realized.shift(1)).clip(upper=max_leverage)

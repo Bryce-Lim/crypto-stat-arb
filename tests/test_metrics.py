@@ -46,3 +46,17 @@ def test_summary_keys():
     assert set(out) == {
         "ann_return", "ann_vol", "sharpe", "max_drawdown", "alpha", "beta"
     }
+
+
+def test_information_coefficient_detects_perfect_and_zero_signal():
+    idx = pd.date_range("2020-01-01", periods=60)
+    cols = ["A", "B", "C", "D", "E"]
+    rng = np.random.default_rng(0)
+    fwd = pd.DataFrame(rng.normal(0, 0.02, (60, 5)), index=idx, columns=cols)
+    # signal == forward return  -> IC ~ 1, huge t-stat
+    ic, t = metrics.information_coefficient(fwd.copy(), fwd)
+    assert ic > 0.99 and t > 10
+    # signal independent of forward return -> t-stat near zero
+    noise = pd.DataFrame(rng.normal(0, 1, (60, 5)), index=idx, columns=cols)
+    ic0, t0 = metrics.information_coefficient(noise, fwd)
+    assert abs(t0) < 3

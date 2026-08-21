@@ -48,8 +48,13 @@ def main():
     train_idx, test_idx = pipeline.split_index(returns.index)
     print(f"Selected no-trade band (train-only): {band}")
 
-    # ---- Enhancer ablation (full-sample net Sharpe at both cost levels) ----
+    # ---- Signal quality: cross-sectional IC of the reversal signal ----
     rev_sig = strategy.cross_sectional_reversal_signal(returns)
+    ic, ic_t = metrics.information_coefficient(rev_sig, returns.shift(-1))
+    print(f"Reversal signal IC: mean={ic:+.4f}  t-stat={ic_t:+.2f}  "
+          f"(cost-free evidence the signal ranks winners vs losers)")
+
+    # ---- Enhancer ablation (full-sample net Sharpe at both cost levels) ----
     w_raw = strategy.to_weights(rev_sig.fillna(0.0))
     w_band = strategy.no_trade_band(w_raw, band=band)
     w_vs = strategy.no_trade_band(

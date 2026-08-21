@@ -21,7 +21,8 @@ strong reversal regime, so the **full-sample and train numbers above are the
 conservative read**.
 
 The underlying signal is robust, not a lucky window: the cross-sectional reversal
-**information coefficient is +0.088 with a t-stat of +6.85** over the 2-year panel.
+**information coefficient is +0.10 with a t-stat of +8.1** over the 2-year panel
+(printed by `run.py` — cost-free evidence, independent of the P&L assumptions).
 
 ![equity curve](equity_curve.png)
 
@@ -46,8 +47,12 @@ low enough to preserve it net of cost.
 - **Turnover control:** a **no-trade band** (rebalance a name only when its target
   moves enough to pay for itself). The band width is chosen **on the training slice
   only**.
-- **Risk normalization:** book-level **volatility targeting to 15%** so the reported
-  return and drawdown reflect a fixed risk budget (Sharpe is essentially unchanged).
+- **Risk normalization:** book-level **volatility targeting to a 15% budget** so the
+  reported return and drawdown reflect a fixed risk level. Because the scaler is
+  time-varying (trailing vol, lagged) it modestly shifts the Sharpe — full-sample
+  band-only is 2.73 and the vol-targeted book is 2.46 at 7 bps — in exchange for
+  interpretable, comparable risk. Realized vol lands near 20% (not exactly 15%)
+  because of the 30-day estimation lag and the 3× leverage cap.
 - **Costs:** `turnover × cost_bps`, reported at both 7 bps and 20 bps.
 
 ### What was tested and rejected (honest ablation)
@@ -94,5 +99,7 @@ from US networks; Binance.US exposes the identical endpoints). No API key requir
 - **Sample:** ~2 years / one 70-30 split. The signal's t-stat (+6.85) is strong, but a
   single test window is a limitation; a walk-forward split would strengthen it further.
 - **Costs modeled as `turnover × cost_bps`;** real slippage depends on size and fills.
+- **The no-trade band is selected once, on train, at 7 bps** and reused for the 20 bps
+  report; the cost-optimal band could differ slightly at market-order pricing.
 - **Test > train** because the recent period favored reversal — flagged rather than
   cherry-picked as the headline.
