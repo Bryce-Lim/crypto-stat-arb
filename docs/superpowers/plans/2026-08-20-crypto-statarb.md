@@ -394,14 +394,19 @@ def test_no_trade_band_suppresses_small_moves():
     assert held.iloc[2]["A"] == pytest.approx(0.7)
 
 
-def test_combine_inverse_vol_overweights_calmer_sleeve():
+def test_combine_inverse_vol_downweights_wild_sleeve():
     n = 400
     rng = np.random.default_rng(1)
-    calm = pd.Series(rng.normal(0.001, 0.001, n))   # low vol, positive
+    calm = pd.Series(rng.normal(0.001, 0.001, n))   # low vol
     wild = pd.Series(rng.normal(0.001, 0.05, n))    # high vol
     combined = strategy.combine_inverse_vol(calm, wild, lookback=30)
-    # combined should track the calm sleeve much more closely
-    assert combined.corr(calm) > combined.corr(wild)
+    equal = 0.5 * calm + 0.5 * wild
+    idx = combined.dropna().index
+    # inverse-vol weighting down-weights the high-vol sleeve, so the blend
+    # is far less volatile than a naive equal-weight blend of the same sleeves.
+    # (A correlation test would be wrong here: inverse-vol equalizes risk
+    # contributions, so the blend correlates ~equally with both sleeves.)
+    assert combined.loc[idx].std() < equal.loc[idx].std()
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
