@@ -5,3 +5,5 @@ cache/
 *.png
 .venv/
 results.csv
+.superpowers/
+test_metrics.csv
