@@ -394,14 +394,28 @@ def test_no_trade_band_suppresses_small_moves():
     assert held.iloc[2]["A"] == pytest.approx(0.7)
 
 
-def test_combine_inverse_vol_overweights_calmer_sleeve():
+def test_no_trade_band_holds_through_all_nan_row():
+    w = pd.DataFrame({"A": [0.5, np.nan, 0.5], "B": [-0.5, np.nan, -0.5]})
+    held = strategy.no_trade_band(w, band=0.02)
+    # a mid-series all-NaN row (data gap) must carry the prior book forward,
+    # not reset to flat (which would book two spurious round-trip trades)
+    assert held.iloc[1]["A"] == pytest.approx(0.5)
+    assert held.iloc[1]["B"] == pytest.approx(-0.5)
+
+
+def test_combine_inverse_vol_downweights_wild_sleeve():
     n = 400
     rng = np.random.default_rng(1)
-    calm = pd.Series(rng.normal(0.001, 0.001, n))   # low vol, positive
+    calm = pd.Series(rng.normal(0.001, 0.001, n))   # low vol
     wild = pd.Series(rng.normal(0.001, 0.05, n))    # high vol
     combined = strategy.combine_inverse_vol(calm, wild, lookback=30)
-    # combined should track the calm sleeve much more closely
-    assert combined.corr(calm) > combined.corr(wild)
+    equal = 0.5 * calm + 0.5 * wild
+    idx = combined.dropna().index
+    # inverse-vol weighting down-weights the high-vol sleeve, so the blend
+    # is far less volatile than a naive equal-weight blend of the same sleeves.
+    # (A correlation test would be wrong here: inverse-vol equalizes risk
+    # contributions, so the blend correlates ~equally with both sleeves.)
+    assert combined.loc[idx].std() < equal.loc[idx].std()
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -462,9 +476,12 @@ def no_trade_band(weights: pd.DataFrame, band: float = 0.02) -> pd.DataFrame:
     prev = None
     for i in range(len(weights)):
         target = weights.iloc[i]
-        if prev is None or target.isna().all():
+        if prev is None:
             prev = target.fillna(0.0)
             out.iloc[i] = prev
+            continue
+        if target.isna().all():
+            out.iloc[i] = prev          # data gap: hold the book, don't unwind
             continue
         target = target.fillna(0.0)
         held = prev.copy()
@@ -584,7 +601,9 @@ import time
 import pandas as pd
 import requests
 
-BASE = "https://api.binance.com"
+# Binance.US endpoint (api.binance.com returns HTTP 451 from US networks).
+# Identical REST shape (/api/v3/klines, /api/v3/ticker/24hr, quoteVolume field).
+BASE = "https://api.binance.us"
 
 STABLECOINS = {
     "USDCUSDT", "BUSDUSDT", "TUSDUSDT", "USDPUSDT", "FDUSDUSDT",

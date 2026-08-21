@@ -177,3 +177,38 @@ README.md     -> resume-facing writeup with headline numbers and methodology
 - No live trading, order-book simulation, or borrow-cost modeling.
 - No ML models — signals are transparent and interpretable by design.
 - No configurable multi-exchange abstraction; Binance only.
+
+---
+
+## 13. Post-Implementation Revision (evidence-driven)
+
+Running the built pipeline against live data surfaced two root causes that the
+original design did not anticipate, and the fixes changed several design choices.
+Documented here so the spec matches what was actually built.
+
+**Root causes found**
+1. `load_panel`'s `dropna(how="any")` intersected all coins; because top-volume
+   ranking surfaces newly-listed coins, the common window collapsed to ~99 days.
+2. Daily reversal turnover (~1.4/day) makes 20 bps costs ~100%/yr — the gross
+   signal is strong (Sharpe ~2.5) but is buried by costs at market-order pricing.
+
+**Design changes**
+- **Universe:** added `data.build_universe` — top-N liquid USDT pairs that also
+  have ≥ 700 days of history. Yields a ~2-year (729-day) panel instead of 99 days.
+- **Signal quality confirmed:** cross-sectional reversal IC = +0.088, t-stat
+  **+6.85** over the 2-year panel (robust, not a lucky window).
+- **Headline cost = 7 bps limit orders** (assignment-sanctioned; a reversal book
+  provides liquidity). 20 bps market orders reported as a conservative bound.
+- **Final book = reversal + no-trade band only**, with the band chosen on the
+  TRAIN slice. The enhancer ablation showed per-name volatility scaling and the
+  volume filter do **not** improve net returns, so both are excluded from the
+  final book (kept in the ablation as honest negative results).
+- **Book-level volatility targeting (15%)** added (`strategy.vol_target`) so
+  reported return/drawdown reflect a fixed risk budget; it leaves Sharpe ~unchanged.
+- **Momentum sleeve dropped from the final book:** it is strong in-sample
+  (Sharpe +1.2) but negative out-of-sample (−1.45) and drags the combination.
+  Retained only as an ablation result demonstrating why it was rejected.
+
+**Final net-of-cost results (market-neutral, beta ≈ 0.03), full 2-year sample**
+- 7 bps limit orders: Sharpe **+2.46**, ann. return +49%, max DD −25%.
+- 20 bps market orders: Sharpe **+1.44**, ann. return +29%, max DD −30%.
