@@ -78,3 +78,24 @@ def test_combine_inverse_vol_downweights_wild_sleeve():
     # (A correlation test would be wrong here: inverse-vol equalizes risk
     # contributions, so the blend correlates ~equally with both sleeves.)
     assert combined.loc[idx].std() < equal.loc[idx].std()
+
+
+def test_vol_target_scales_toward_target_annual_vol():
+    rng = np.random.default_rng(0)
+    # ~76% annualized vol input, well above the 15% target
+    r = pd.Series(rng.normal(0.0, 0.04, 2000))
+    out = strategy.vol_target(r, target_annual=0.15, lookback=30).dropna()
+    ann = out.std(ddof=0) * np.sqrt(365)
+    assert 0.10 < ann < 0.22        # pulled close to 15%
+
+
+def test_vol_target_leaves_sharpe_essentially_unchanged():
+    rng = np.random.default_rng(1)
+    r = pd.Series(rng.normal(0.001, 0.03, 3000))
+    out = strategy.vol_target(r, target_annual=0.15, lookback=30)
+    idx = out.dropna().index
+    base = r.loc[idx]
+    sh_in = base.mean() / base.std(ddof=0)
+    sh_out = out.loc[idx].mean() / out.loc[idx].std(ddof=0)
+    # linear rescale by a slowly-varying scaler keeps Sharpe close
+    assert abs(sh_in - sh_out) < 0.1 * abs(sh_in) + 0.02

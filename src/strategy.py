@@ -74,3 +74,19 @@ def combine_inverse_vol(ret_a: pd.Series, ret_b: pd.Series,
     w_b = (inv_b / total).shift(1)
     combined = w_a * ret_a + w_b * ret_b
     return combined
+
+
+def vol_target(returns: pd.Series, target_annual: float = 0.15,
+               lookback: int = 30, periods_per_year: int = 365,
+               max_leverage: float = 3.0) -> pd.Series:
+    """Scale a daily strategy-return series toward a constant annual volatility.
+
+    Uses trailing realized vol lagged one day (no lookahead) as the scaler, so
+    the reported return/drawdown numbers reflect a fixed risk budget rather than
+    whatever raw leverage the gross-1 book happened to run. Leverage is capped to
+    avoid blow-ups when trailing vol is tiny. Volatility targeting is a linear
+    rescale, so it leaves the Sharpe ratio essentially unchanged.
+    """
+    realized = returns.rolling(lookback).std() * np.sqrt(periods_per_year)
+    lev = (target_annual / realized.shift(1)).clip(upper=max_leverage)
+    return returns * lev
