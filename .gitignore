@@ -7,3 +7,4 @@ cache/
 results.csv
 .superpowers/
 test_metrics.csv
+!equity_curve.png
