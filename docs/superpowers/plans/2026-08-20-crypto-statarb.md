@@ -601,7 +601,9 @@ import time
 import pandas as pd
 import requests
 
-BASE = "https://api.binance.com"
+# Binance.US endpoint (api.binance.com returns HTTP 451 from US networks).
+# Identical REST shape (/api/v3/klines, /api/v3/ticker/24hr, quoteVolume field).
+BASE = "https://api.binance.us"
 
 STABLECOINS = {
     "USDCUSDT", "BUSDUSDT", "TUSDUSDT", "USDPUSDT", "FDUSDUSDT",
