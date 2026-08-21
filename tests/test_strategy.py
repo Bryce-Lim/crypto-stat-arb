@@ -56,6 +56,15 @@ def test_no_trade_band_suppresses_small_moves():
     assert held.iloc[2]["A"] == pytest.approx(0.7)
 
 
+def test_no_trade_band_holds_through_all_nan_row():
+    w = pd.DataFrame({"A": [0.5, np.nan, 0.5], "B": [-0.5, np.nan, -0.5]})
+    held = strategy.no_trade_band(w, band=0.02)
+    # a mid-series all-NaN row (data gap) must carry the prior book forward,
+    # not reset to flat (which would book two spurious round-trip trades)
+    assert held.iloc[1]["A"] == pytest.approx(0.5)
+    assert held.iloc[1]["B"] == pytest.approx(-0.5)
+
+
 def test_combine_inverse_vol_downweights_wild_sleeve():
     n = 400
     rng = np.random.default_rng(1)

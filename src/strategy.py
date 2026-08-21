@@ -47,9 +47,12 @@ def no_trade_band(weights: pd.DataFrame, band: float = 0.02) -> pd.DataFrame:
     prev = None
     for i in range(len(weights)):
         target = weights.iloc[i]
-        if prev is None or target.isna().all():
+        if prev is None:
             prev = target.fillna(0.0)
             out.iloc[i] = prev
+            continue
+        if target.isna().all():
+            out.iloc[i] = prev          # data gap: hold the book, don't unwind
             continue
         target = target.fillna(0.0)
         held = prev.copy()
